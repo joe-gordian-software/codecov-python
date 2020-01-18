@@ -498,7 +498,7 @@ def main(*argv, **kwargs):
                               commit=os.getenv('HEROKU_TEST_RUN_COMMIT_VERSION')))
 
             write('    Heroku CI Detected')
-            codecov.disable.append('search')
+            codecov.disable.append('git')
 
         else:
             query.update(dict(commit=os.getenv('VCS_COMMIT_ID', ''),
