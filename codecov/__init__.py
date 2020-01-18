@@ -230,7 +230,7 @@ def main(*argv, **kwargs):
     gcov.add_argument('--gcov-args', default='', help="extra arguments to pass to gcov")
 
     advanced = parser.add_argument_group('======================== Advanced ========================')
-    advanced.add_argument('-X', '--disable', nargs="*", default=[], help="Disable features. Accepting **search** to disable crawling through directories, **detect** to disable detecting CI provider, **gcov** disable gcov commands, `pycov` disables running python `coverage xml`, **toc** to disable getting the file list from git/mercurial, **fix** to disable report adjustments https://docs.codecov.io/docs/fixing-reports")
+    advanced.add_argument('-X', '--disable', nargs="*", default=[], help="Disable features. Accepting **search** to disable crawling through directories, **detect** to disable detecting CI provider, **gcov** disable gcov commands, `pycov` disables running python `coverage xml`, **git** to disable using git/mercurial, **fix** to disable report adjustments https://docs.codecov.io/docs/fixing-reports")
     advanced.add_argument('--root', default=None, help="Project directory. Default: current direcory or provided in CI environment variables")
     advanced.add_argument('--commit', '-c', default=None, help="Commit SHA, set automatically")
     advanced.add_argument('--prefix', '-P', default=None, help="Prefix network paths to help resolve paths: https://github.com/codecov/support/issues/472")
@@ -583,49 +583,50 @@ def main(*argv, **kwargs):
 
         # Build TOC
         # ---------
-        if 'toc' in codecov.disable:
-            toc = None
+        if 'git' in codecov.disable:
+            toc = str((try_to_run('find %s' % root) or
+                       try_to_run('find') or '').strip())
         else:
             toc = str((try_to_run('cd %s && git ls-files' % root) or
                        try_to_run('git ls-files') or
                        try_to_run('cd %s && hg locate' % root) or
                        try_to_run('hg locate') or '').strip())
 
-            if codecov.prefix:
-                prefix = codecov.prefix.strip('/')
-                toc = '{}/{}'.format(
-                    prefix,
-                    toc.replace('\n', '\n{}/'.format(prefix))
-                )
-
-            # Detect codecov.yml location
-            yaml_location = re.search(
-                r'\.?codecov\.ya?ml$',
-                toc,
-                re.M
+        if codecov.prefix:
+            prefix = codecov.prefix.strip('/')
+            toc = '{}/{}'.format(
+                prefix,
+                toc.replace('\n', '\n{}/'.format(prefix))
             )
 
-            if yaml_location:
-                yaml_location = yaml_location.group()
-                yaml_path = opj(root, yaml_location)
-                if os.path.exists(yaml_path):
-                    query['yaml'] = yaml_location
-                    yaml = fopen(yaml_path)
-                    _token = re.search(
-                        r'token: (\'|\")?([0-9a-f]{8}(-?[0-9a-f]{4}){3}-?[0-9a-f]{12})',
-                        yaml,
-                        re.M
-                    )
-                    if _token:
-                        query['token'] = _token.groups()[1]
+        # Detect codecov.yml location
+        yaml_location = re.search(
+            r'\.?codecov\.ya?ml$',
+            toc,
+            re.M
+        )
 
-                    _slug = re.search(
-                        r'slug: (\'|\")?([\w\-\.\+]+\/[\w\-\.\+]+)',
-                        yaml,
-                        re.M
-                    )
-                    if _slug:
-                        query['slug'] = _slug.groups()[1]
+        if yaml_location:
+            yaml_location = yaml_location.group()
+            yaml_path = opj(root, yaml_location)
+            if os.path.exists(yaml_path):
+                query['yaml'] = yaml_location
+                yaml = fopen(yaml_path)
+                _token = re.search(
+                    r'token: (\'|\")?([0-9a-f]{8}(-?[0-9a-f]{4}){3}-?[0-9a-f]{12})',
+                    yaml,
+                    re.M
+                )
+                if _token:
+                    query['token'] = _token.groups()[1]
+
+                _slug = re.search(
+                    r'slug: (\'|\")?([\w\-\.\+]+\/[\w\-\.\+]+)',
+                    yaml,
+                    re.M
+                )
+                if _slug:
+                    query['slug'] = _slug.groups()[1]
 
         assert query.get('job') or query.get('token'), "Missing repository upload token"
 
