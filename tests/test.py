@@ -45,7 +45,8 @@ class TestUploader(unittest.TestCase):
                     "APPVEYOR_BUILD_VERSION", "APPVEYOR_JOB_ID", "APPVEYOR_REPO_NAME", "APPVEYOR_REPO_COMMIT", "WERCKER_GIT_BRANCH",
                     "WERCKER_MAIN_PIPELINE_STARTED", "WERCKER_GIT_OWNER", "WERCKER_GIT_REPOSITORY",
                     "CI_BUILD_REF_NAME", "CI_BUILD_ID", "CI_BUILD_REPO", "CI_PROJECT_DIR", "CI_BUILD_REF", "CI_SERVER_NAME",
-                    "ghprbActualCommit", "ghprbSourceBranch", "ghprbPullId", "WERCKER_GIT_COMMIT", "CHANGE_ID"):
+                    "ghprbActualCommit", "ghprbSourceBranch", "ghprbPullId", "WERCKER_GIT_COMMIT", "CHANGE_ID",
+                    "HEROKU_TEST_RUN_BRANCH", "HEROKU_TEST_RUN_ID", "HEROKU_TEST_RUN_COMMIT_VERSION"):
             os.environ[key] = ""
 
     def tearDown(self):
@@ -571,6 +572,18 @@ class TestUploader(unittest.TestCase):
         self.assertEqual(res['query']['commit'], 'd653b934ed59c1a785cc1cc79d08c9aaa4eba73b')
         self.assertEqual(res['query']['build'], '1399372237')
         self.assertEqual(res['query']['slug'], 'owner/repo')
+        self.assertEqual(res['codecov'].token, 'token')
+
+    def test_ci_heroku(self):
+        self.set_env(HEROKU_TEST_RUN_ID='123456789',
+                     HEROKU_TEST_RUN_BRANCH='test_branch',
+                     HEROKU_TEST_RUN_COMMIT_VERSION='abcdef123',
+                     CI='true')
+        self.fake_report()
+        res = self.run_cli()
+        self.assertEqual(res['query']['service'], 'heroku')
+        self.assertEqual(res['query']['commit'], 'abcdef123')
+        self.assertEqual(res['query']['build'], '123456789')
         self.assertEqual(res['codecov'].token, 'token')
 
     @unittest.skip('Skip CI None')

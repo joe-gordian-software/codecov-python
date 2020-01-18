@@ -1,3 +1,6 @@
+### `2.0.16`
+- Add support for Heroku
+
 ### `2.0.15`
 - add `-X s3` to disable direct to S3 uploading
 

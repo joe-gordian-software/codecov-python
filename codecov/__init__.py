@@ -26,7 +26,7 @@ import logging
 logging.captureWarnings(True)
 
 
-version = VERSION = __version__ = '2.0.15'
+version = VERSION = __version__ = '2.0.16'
 
 COLOR = True
 
@@ -486,6 +486,20 @@ def main(*argv, **kwargs):
 
             write('    Gitlab CI Detected')
 
+        # ---------
+        # Heroku
+        # ---------
+        elif os.getenv('HEROKU_TEST_RUN_ID'):
+            # transposed from https://github.com/codecov/codecov-ruby/pull/28/files
+            # https://devcenter.heroku.com/articles/heroku-ci
+            query.update(dict(service='heroku',
+                              branch=os.getenv('HEROKU_TEST_RUN_BRANCH'),
+                              build=os.getenv('HEROKU_TEST_RUN_ID'),
+                              commit=os.getenv('HEROKU_TEST_RUN_COMMIT_VERSION')))
+
+            write('    Heroku CI Detected')
+            codecov.disable.append('search')
+
         else:
             query.update(dict(commit=os.getenv('VCS_COMMIT_ID', ''),
                               branch=os.getenv('VCS_BRANCH_NAME', ''),
@@ -569,45 +583,49 @@ def main(*argv, **kwargs):
 
         # Build TOC
         # ---------
-        toc = str((try_to_run('cd %s && git ls-files' % root) or
-                   try_to_run('git ls-files') or
-                   try_to_run('cd %s && hg locate' % root) or
-                   try_to_run('hg locate') or '').strip())
+        if 'toc' in codecov.disable:
+            toc = None
+        else:
+            toc = str((try_to_run('cd %s && git ls-files' % root) or
+                       try_to_run('git ls-files') or
+                       try_to_run('cd %s && hg locate' % root) or
+                       try_to_run('hg locate') or '').strip())
 
-        if codecov.prefix:
-            prefix = codecov.prefix.strip('/')
-            toc = '{}/{}'.format(
-                prefix,
-                toc.replace('\n', '\n{}/'.format(prefix))
+            if codecov.prefix:
+                prefix = codecov.prefix.strip('/')
+                toc = '{}/{}'.format(
+                    prefix,
+                    toc.replace('\n', '\n{}/'.format(prefix))
+                )
+
+            # Detect codecov.yml location
+            yaml_location = re.search(
+                r'\.?codecov\.ya?ml$',
+                toc,
+                re.M
             )
 
-        # Detect codecov.yml location
-        yaml_location = re.search(
-            r'\.?codecov\.ya?ml$',
-            toc,
-            re.M
-        )
-        if yaml_location:
-            yaml_location = yaml_location.group()
-            yaml_path = opj(root, yaml_location)
-            if os.path.exists(yaml_path):
-                query['yaml'] = yaml_location
-                yaml = fopen(yaml_path)
-                _token = re.search(
-                    r'token: (\'|\")?([0-9a-f]{8}(-?[0-9a-f]{4}){3}-?[0-9a-f]{12})',
-                    yaml,
-                    re.M
-                )
-                if _token:
-                    query['token'] = _token.groups()[1]
+            if yaml_location:
+                yaml_location = yaml_location.group()
+                yaml_path = opj(root, yaml_location)
+                if os.path.exists(yaml_path):
+                    query['yaml'] = yaml_location
+                    yaml = fopen(yaml_path)
+                    _token = re.search(
+                        r'token: (\'|\")?([0-9a-f]{8}(-?[0-9a-f]{4}){3}-?[0-9a-f]{12})',
+                        yaml,
+                        re.M
+                    )
+                    if _token:
+                        query['token'] = _token.groups()[1]
 
-                _slug = re.search(
-                    r'slug: (\'|\")?([\w\-\.\+]+\/[\w\-\.\+]+)',
-                    yaml,
-                    re.M
-                )
-                if _slug:
-                    query['slug'] = _slug.groups()[1]
+                    _slug = re.search(
+                        r'slug: (\'|\")?([\w\-\.\+]+\/[\w\-\.\+]+)',
+                        yaml,
+                        re.M
+                    )
+                    if _slug:
+                        query['slug'] = _slug.groups()[1]
 
         assert query.get('job') or query.get('token'), "Missing repository upload token"
 
