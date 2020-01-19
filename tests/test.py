@@ -578,7 +578,8 @@ class TestUploader(unittest.TestCase):
         self.set_env(HEROKU_TEST_RUN_ID='123456789',
                      HEROKU_TEST_RUN_BRANCH='test_branch',
                      HEROKU_TEST_RUN_COMMIT_VERSION='abcdef123',
-                     CI='true')
+                     CI='true',
+                     CODECOV_TOKEN='token')
         self.fake_report()
         res = self.run_cli()
         self.assertEqual(res['query']['service'], 'heroku')

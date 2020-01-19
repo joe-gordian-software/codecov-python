@@ -587,6 +587,7 @@ def main(*argv, **kwargs):
             toc = str((try_to_run('find %s' % root) or
                        try_to_run('find') or '').strip())
         else:
+            assert not query.get('service') == 'heroku'
             toc = str((try_to_run('cd %s && git ls-files' % root) or
                        try_to_run('git ls-files') or
                        try_to_run('cd %s && hg locate' % root) or
